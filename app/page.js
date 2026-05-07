@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 const initialSignatures = 12346;
 const goal = 200000;
+const countStorageKey = "sabiri_out_count";
+const signedStorageKey = "sabiri_out_signed";
 
 export default function Home() {
   const [signed, setSigned] = useState(false);
@@ -13,6 +15,15 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
 
+    const savedCount = Number(window.localStorage.getItem(countStorageKey));
+    if (Number.isFinite(savedCount) && savedCount > initialSignatures) {
+      setSignatures(savedCount);
+    }
+
+    if (window.localStorage.getItem(signedStorageKey) === "true") {
+      setSigned(true);
+    }
+
     async function loadVotes() {
       const response = await fetch("/api/votes", { cache: "no-store" });
       if (!response.ok) return;
@@ -20,11 +31,20 @@ export default function Home() {
       const data = await response.json();
 
       if (isMounted && Number.isFinite(data.count)) {
-        setSignatures(data.count);
+        setSignatures((currentCount) => {
+          const nextCount = Math.max(currentCount, data.count);
+          window.localStorage.setItem(countStorageKey, String(nextCount));
+          return nextCount;
+        });
       }
 
       if (isMounted) {
-        setSigned(data.voted === true);
+        const hasSigned = data.voted === true || window.localStorage.getItem(signedStorageKey) === "true";
+        setSigned(hasSigned);
+
+        if (hasSigned) {
+          window.localStorage.setItem(signedStorageKey, "true");
+        }
       }
     }
 
@@ -56,11 +76,16 @@ export default function Home() {
       const data = await response.json();
 
       if (Number.isFinite(data.count)) {
-        setSignatures(data.count);
+        setSignatures((currentCount) => {
+          const nextCount = Math.max(currentCount, data.count);
+          window.localStorage.setItem(countStorageKey, String(nextCount));
+          return nextCount;
+        });
       }
 
       if (data.voted === true) {
         setSigned(true);
+        window.localStorage.setItem(signedStorageKey, "true");
       }
     } finally {
       setIsSubmitting(false);
