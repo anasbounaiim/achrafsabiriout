@@ -8,6 +8,7 @@ const votesFile = path.join(dataDirectory, "votes.json");
 const votedCookie = "sabiri_out_voted";
 
 let writeQueue = Promise.resolve();
+let cachedCount = initialCount;
 
 async function readCount() {
   try {
@@ -15,18 +16,25 @@ async function readCount() {
     const data = JSON.parse(file);
 
     if (Number.isFinite(data.count)) {
-      return data.count;
+      cachedCount = data.count;
+      return cachedCount;
     }
   } catch {
   }
 
-  await saveCount(initialCount);
-  return initialCount;
+  return cachedCount;
 }
 
 async function saveCount(count) {
-  await mkdir(dataDirectory, { recursive: true });
-  await writeFile(votesFile, JSON.stringify({ count }, null, 2), "utf8");
+  cachedCount = count;
+
+  try {
+    await mkdir(dataDirectory, { recursive: true });
+    await writeFile(votesFile, JSON.stringify({ count }, null, 2), "utf8");
+  } catch {
+    // Serverless deployments often expose a read-only filesystem.
+    // Keep the API alive with the in-memory count for that runtime.
+  }
 }
 
 export async function GET() {

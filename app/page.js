@@ -15,6 +15,8 @@ export default function Home() {
 
     async function loadVotes() {
       const response = await fetch("/api/votes", { cache: "no-store" });
+      if (!response.ok) return;
+
       const data = await response.json();
 
       if (isMounted && Number.isFinite(data.count)) {
@@ -49,6 +51,8 @@ export default function Home() {
           "Content-Type": "application/json",
         },
       });
+      if (!response.ok && response.status !== 409) return;
+
       const data = await response.json();
 
       if (Number.isFinite(data.count)) {
